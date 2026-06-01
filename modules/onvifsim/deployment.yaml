@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: onvifsim
+  namespace: default
+  labels:
+    app: onvifsim
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: onvifsim
+  template:
+    metadata:
+      labels:
+        app: onvifsim
+    spec:
+      containers:
+        - name: onvifsim
+          image: <YOUR_REGISTRY>/onvifsim:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: IMAGES_DIR
+              value: /images
+            - name: ONVIF_AUTH_MODE
+              value: "digest"
+            - name: ONVIF_AUTH_USERNAME
+              value: "admin"
+            - name: ONVIF_AUTH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: onvifsim-credentials
+                  key: password
+            - name: ONVIF_LOG_LEVEL
+              value: "info"
+          volumeMounts:
+            - name: images
+              mountPath: /images
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+      volumes:
+        - name: images
+          # For small test image sets use a ConfigMap. For larger sets, use a PVC.
+          # ConfigMap example (uncomment and replace PVC below):
+          # configMap:
+          #   name: onvifsim-images
+          persistentVolumeClaim:
+            claimName: onvifsim-images-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: onvifsim
+  namespace: default
+spec:
+  selector:
+    app: onvifsim
+  ports:
+    - port: 8080
+      targetPort: 8080
+  type: ClusterIP
+---
+# Create this secret before deploying:
+#   kubectl create secret generic onvifsim-credentials --from-literal=password='Password1!'
+apiVersion: v1
+kind: Secret
+metadata:
+  name: onvifsim-credentials
+  namespace: default
+type: Opaque
+# stringData:
+#   password: "Password1!"

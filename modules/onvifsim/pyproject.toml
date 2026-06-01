@@ -1,0 +1,17 @@
+[project]
+name = "onvifsim"
+version = "1.0.0"
+requires-python = ">=3.11"
+dependencies = [
+    "flask>=3.0",
+    "lxml>=5.0",
+    "pyyaml>=6.0",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=8.0",
+    "requests>=2.32",
+    "kagglehub>=0.3",
+]
+

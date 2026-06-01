@@ -1,0 +1,7 @@
+# Ignore image files — Kaggle dataset not committed to source control
+*.jpg
+*.jpeg
+*.png
+*.bmp
+*.gif
+*.webp

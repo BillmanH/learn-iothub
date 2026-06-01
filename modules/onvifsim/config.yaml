@@ -1,0 +1,56 @@
+device:
+  manufacturer: "Simulator Inc."
+  model: "onvifsim-v1"
+  firmware_version: "1.0.0"
+  serial: "SIM-001"
+  hardware_id: "HW-001"
+  name: "onvifsim"            # used for hostname and WS-Discovery scopes
+
+media:
+  video_resolution:
+    width: 1920
+    height: 1080
+  frame_rate: 25
+
+ptz:
+  enabled: true
+  default_position:
+    pan: 0.0
+    tilt: 0.0
+    zoom: 0.0
+  home_position:
+    pan: 0.0
+    tilt: 0.0
+    zoom: 0.0
+  presets:
+    - name: "Home"
+      token: "preset_0"
+      pan: 0.0
+      tilt: 0.0
+      zoom: 0.0
+
+imaging:
+  brightness: 50
+  contrast: 50
+  saturation: 50
+
+auth:
+  mode: digest              # none | basic | digest
+  username: admin
+  password: "Password1!"
+
+images:
+  dir: images               # relative to CWD (modules/onvifsim/); overridden by IMAGES_DIR env var
+  loop_interval_ms: 2000    # time between image advances
+  supported_extensions:
+    - .jpg
+    - .jpeg
+    - .png
+    - .bmp
+
+server:
+  port: 8080                # overridden by ONVIF_PORT env var
+
+logging:
+  level: info               # error | warning | info | debug
+  show_soap_bodies: false   # if true, logs full SOAP XML at debug level
