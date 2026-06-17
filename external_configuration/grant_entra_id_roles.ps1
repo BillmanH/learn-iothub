@@ -1055,6 +1055,69 @@ if ($containerRegistry) {
     Write-Info "  Run External-Configurator.ps1 first to create the ACR, then re-run this script."
 }
 
+# ============================================================================
+# GRANT ROLES - AZURE MANAGED GRAFANA
+# ============================================================================
+
+Write-Header "Granting Azure Managed Grafana Permissions"
+
+$grafanaResource = $null
+
+Write-SubHeader "Finding Azure Managed Grafana Instance"
+$grafanaResources = az resource list `
+    --resource-group $script:ResourceGroup `
+    --resource-type "Microsoft.Dashboard/grafana" `
+    --query "[].{name:name, id:id}" -o json 2>$null | ConvertFrom-Json
+
+if ($grafanaResources -and $grafanaResources.Count -gt 0) {
+    $grafanaResource = $grafanaResources[0]
+    Write-Success "Found Grafana instance: $($grafanaResource.name)"
+    Write-Info "  Resource ID: $($grafanaResource.id)"
+
+    # Grant Grafana Admin to the user so they have at least Viewer access
+    # Grafana Admin  = full access (includes Viewer and Editor)
+    # Grafana Editor = can edit dashboards
+    # Grafana Viewer = read-only
+    Write-SubHeader "User: $userObjectId"
+    Write-Info "Granting 'Grafana Admin' to user..."
+    az role assignment create `
+        --role "Grafana Admin" `
+        --assignee-object-id $userObjectId `
+        --assignee-principal-type User `
+        --scope $grafanaResource.id `
+        --output none 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        Write-Success "Granted Grafana Admin to user"
+    } else {
+        Write-Warning "Could not grant Grafana Admin (may already exist or insufficient permissions)"
+        Write-Info "  Run manually: az role assignment create --role 'Grafana Admin' --assignee $userObjectId --scope '$($grafanaResource.id)'"
+    }
+
+    # Grant Grafana Viewer to AIO instance identity (for dashboard data)
+    if ($aioIdentity.principalId) {
+        Write-SubHeader "AIO Instance Identity"
+        Write-Info "Granting 'Grafana Viewer' to AIO instance..."
+        az role assignment create `
+            --role "Grafana Viewer" `
+            --assignee-object-id $aioIdentity.principalId `
+            --assignee-principal-type ServicePrincipal `
+            --scope $grafanaResource.id `
+            --output none 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            Write-Success "Granted Grafana Viewer to AIO instance"
+        } else {
+            Write-Warning "Could not grant Grafana Viewer to AIO instance (may already exist)"
+        }
+    }
+} else {
+    Write-Warning "No Azure Managed Grafana instance found in resource group - skipping"
+    Write-Info "  If Grafana is in a different resource group, run manually:"
+    Write-Info "  az role assignment create --role 'Grafana Admin' --assignee $userObjectId --scope <grafana-resource-id>"
+    Write-Info ""
+    Write-Info "  To find your Grafana resource ID:"
+    Write-Info "  az resource list --resource-type 'Microsoft.Dashboard/grafana' --query '[].id' -o tsv"
+}
+
 Write-Header "Summary - Permissions Granted"
 
 Write-Host ""
@@ -1102,6 +1165,15 @@ if ($customLocation) {
     Write-Info "  [OK] Device Registry bridge SP: Contributor on custom location"
 } else {
     Write-Warning "  (No custom location found - re-run after AIO deployment)"
+}
+
+Write-Host ""
+Write-Success "Azure Managed Grafana Permissions:"
+if ($grafanaResource) {
+    Write-Info "  [OK] User '$userObjectId': Grafana Admin on $($grafanaResource.name)"
+    Write-Info "  [OK] AIO Instance: Grafana Viewer on $($grafanaResource.name)"
+} else {
+    Write-Warning "  (No Grafana instance found - grant manually if needed)"
 }
 
 Write-Host ""
