@@ -1,0 +1,199 @@
+# Building Structure Configuration for OPC-UA Building Simulator
+# Drives the node tree, device counts, and simulation parameters
+
+# ─────────────────────────────────────────────
+# Global Settings
+# ─────────────────────────────────────────────
+global:
+  building_name: "Contoso HQ"
+  building_id: "BLD-001"
+  # How often all OPC-UA node values are refreshed (seconds)
+  update_interval_sec: 5.0
+  # UTC offset for local-time schedule logic (e.g. -5 = EST, -6 = CST, -8 = PST)
+  timezone_offset_hours: -5
+
+# ─────────────────────────────────────────────
+# Schedule (used by door lock and lighting logic)
+# ─────────────────────────────────────────────
+schedule:
+  # Local hour (24h) when business hours START — doors unlock, lights come on full
+  business_hours_start: 8
+  # Local hour (24h) when business hours END — doors lock, offices dim/off
+  business_hours_end: 18
+
+# ─────────────────────────────────────────────
+# Temperature Physics
+# ─────────────────────────────────────────────
+temperature:
+  # Comfortable office baseline (Celsius)
+  base_c: 21.0
+  # Peak-to-trough swing over 24h sinusoidal cycle
+  daily_swing_c: 3.0
+  # Random Gaussian noise per update tick
+  noise_c: 0.3
+  # Humidity: random walk, clamped to this range (%)
+  humidity_min_pct: 30.0
+  humidity_max_pct: 70.0
+  humidity_drift_max: 0.5      # Max humidity change per tick
+
+  # Server room overrides
+  server_room_base_c: 22.0
+  server_room_swing_c: 1.0     # Tighter swing — HVAC keeps it controlled
+  server_room_noise_c: 0.1
+  server_room_alert_threshold_c: 27.0
+
+# ─────────────────────────────────────────────
+# Lighting
+# ─────────────────────────────────────────────
+lighting:
+  # Brightness (%) during business hours
+  daytime_brightness_range: [70, 100]
+  # Brightness (%) outside hours — common areas stay dimly lit
+  dimmed_brightness_range: [5, 20]
+  # Max rated wattage per fixture (used to derive power_w from brightness)
+  max_power_w: 60.0
+  # Probability per update tick that a light flickers (brief toggle)
+  flicker_probability: 0.005
+
+# ─────────────────────────────────────────────
+# HVAC
+# ─────────────────────────────────────────────
+hvac:
+  # Default setpoint during business hours
+  setpoint_occupied_c: 21.5
+  # Setback setpoint after hours (energy saving)
+  setpoint_unoccupied_c: 18.5
+  # Dead-band: ±this value before switching mode
+  deadband_c: 0.5
+  # Fan speed range when heating or cooling (%)
+  fan_speed_active_range: [40, 90]
+  # Fan speed when idle (%)
+  fan_speed_idle: 15
+  # Power when heating (kW)
+  power_heating_kw: 3.5
+  # Power when cooling (kW)
+  power_cooling_kw: 4.2
+  # Power when idle (kW)
+  power_idle_kw: 0.3
+
+# ─────────────────────────────────────────────
+# Door Locks
+# ─────────────────────────────────────────────
+doors:
+  # Probability per tick that an unlocked door shows an access event
+  access_event_probability: 0.08
+  # Probability per tick that a door is briefly physically opened (during business hours)
+  open_probability: 0.05
+
+# ─────────────────────────────────────────────
+# Building Layout
+# ─────────────────────────────────────────────
+floors:
+  - id: 1
+    name: "Floor-1"
+    zones:
+      - id: "Office-A"
+        display_name: "Office Wing A"
+        lights: 4
+        hvac_units: 1
+        temp_sensors: 2
+        doors:
+          - id: "Door-01"
+            name: "Office A Entry"
+            fire_exit: false
+          - id: "Door-02"
+            name: "Office A Rear"
+            fire_exit: false
+
+      - id: "Conference-B"
+        display_name: "Conference Suite B"
+        lights: 3
+        hvac_units: 1
+        temp_sensors: 1
+        doors:
+          - id: "Door-01"
+            name: "Conference Entry"
+            fire_exit: false
+
+      - id: "Breakroom-1"
+        display_name: "Break Room"
+        lights: 2
+        hvac_units: 0
+        temp_sensors: 1
+        doors:
+          - id: "Door-01"
+            name: "Breakroom Entry"
+            fire_exit: false
+
+  - id: 2
+    name: "Floor-2"
+    zones:
+      - id: "Office-C"
+        display_name: "Office Wing C"
+        lights: 6
+        hvac_units: 2
+        temp_sensors: 2
+        doors:
+          - id: "Door-01"
+            name: "Office C North Entry"
+            fire_exit: false
+          - id: "Door-02"
+            name: "Office C South Entry"
+            fire_exit: false
+          - id: "Door-03"
+            name: "Office C Fire Exit"
+            fire_exit: true      # Always unlocked — safety override
+
+      - id: "Lab-D"
+        display_name: "Engineering Lab D"
+        lights: 5
+        hvac_units: 1
+        temp_sensors: 2
+        doors:
+          - id: "Door-01"
+            name: "Lab Entry"
+            fire_exit: false
+
+# ─────────────────────────────────────────────
+# Common Areas
+# ─────────────────────────────────────────────
+common_areas:
+  - id: "Lobby"
+    display_name: "Main Lobby"
+    lights: 8
+    hvac_units: 1
+    temp_sensors: 2
+    doors:
+      - id: "Door-01"
+        name: "Main Entrance"
+        fire_exit: false
+      - id: "Door-02"
+        name: "Side Entrance"
+        fire_exit: false
+      - id: "Door-03"
+        name: "Lobby Fire Exit"
+        fire_exit: true          # Always unlocked
+
+  - id: "ServerRoom"
+    display_name: "Server Room"
+    lights: 2
+    hvac_units: 2                # Redundant cooling units
+    temp_sensors: 2              # Redundant sensors
+    is_server_room: true         # Triggers tighter temp range + alert node
+    doors:
+      - id: "Door-01"
+        name: "Server Room Entry"
+        fire_exit: false
+
+  - id: "Parking-Garage"
+    display_name: "Parking Garage"
+    lights: 6
+    hvac_units: 0
+    temp_sensors: 1
+    doors:
+      - id: "Door-01"
+        name: "Garage Vehicle Gate"
+        fire_exit: false
+      - id: "Door-02"
+        name: "Garage Pedestrian Entry"
+        fire_exit: false

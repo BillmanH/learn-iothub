@@ -1,0 +1,87 @@
+---
+# ─────────────────────────────────────────────────────────────────────────────
+# ClusterIP Service — gives AIO a stable DNS name to target
+# opc.tcp://opcuasim.default.svc.cluster.local:4840/building
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: opcuasim
+  namespace: default
+  labels:
+    app: opcuasim
+spec:
+  selector:
+    app: opcuasim
+  ports:
+    - name: opcua
+      port: 4840
+      targetPort: 4840
+      protocol: TCP
+  type: ClusterIP
+---
+# ─────────────────────────────────────────────────────────────────────────────
+# Deployment
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opcuasim
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: opcuasim
+  template:
+    metadata:
+      labels:
+        app: opcuasim
+    spec:
+      serviceAccountName: mqtt-client   # Reuse existing service account
+      imagePullSecrets:
+        - name: acr-pull-secret         # Created by Deploy-EdgeModules.ps1
+      containers:
+        - name: opcuasim
+          image: <YOUR_REGISTRY>/opcuasim:latest
+          ports:
+            - containerPort: 4840
+              name: opcua
+          env:
+            # OPC-UA server settings
+            - name: OPCUA_HOST
+              value: "0.0.0.0"
+            - name: OPCUA_PORT
+              value: "4840"
+            - name: OPCUA_ENDPOINT_PATH
+              value: "/building"
+            # Building config path (matches Dockerfile COPY destination)
+            - name: CONFIG_PATH
+              value: "building_structure.yaml"
+            # Timezone offset for schedule logic (e.g. -5 = EST)
+            # Update this to match the timezone of the building being simulated
+            - name: TZ_OFFSET_HOURS
+              value: "-5"
+            # Log level: DEBUG | INFO | WARNING | ERROR
+            - name: LOG_LEVEL
+              value: "INFO"
+            - name: PYTHONUNBUFFERED
+              value: "1"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "400m"
+          livenessProbe:
+            tcpSocket:
+              port: 4840
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            tcpSocket:
+              port: 4840
+            initialDelaySeconds: 10
+            periodSeconds: 10
